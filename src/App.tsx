@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { AgentEmblem, AgentEmblemThinking, getAgentEmblemStatusCopyFromAIActivity, type AgentEmblemShape, type AgentEmblemState, type ThinkingStyle } from "./lib";
 import vercelSource from "./assets/vercel-icon.svg";
 import polarSource from "./assets/polar.svg";
@@ -469,6 +470,7 @@ export default function App() {
   }
 
   return (
+    <>
     <main className={`playground ${themeMode}`}>
       <header>
         <a className="wordmark" href="#top">AgentEmblem</a>
@@ -695,5 +697,7 @@ export default function App() {
         </div>
       </section>
     </main>
+    <Analytics />
+    </>
   );
 }

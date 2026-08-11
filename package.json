@@ -12,7 +12,16 @@
   "bugs": {
     "url": "https://github.com/pologarcia/agent-emblem/issues"
   },
-  "keywords": ["react", "ai", "agent", "animation", "canvas", "logo", "particles", "svg"],
+  "keywords": [
+    "react",
+    "ai",
+    "agent",
+    "animation",
+    "canvas",
+    "logo",
+    "particles",
+    "svg"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -54,5 +63,8 @@
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
     "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
   }
 }
