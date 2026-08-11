@@ -1,6 +1,7 @@
 node_modules
 dist
 site-dist
+server-dist
 .vercel
 .DS_Store
 .env*

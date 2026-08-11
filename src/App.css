@@ -1504,6 +1504,61 @@ main.playground .sdk-intro h2 {
   user-select: none;
 }
 
+.resource-library {
+  display: grid;
+  width: min(1160px, calc(100% - 40px));
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  gap: clamp(50px, 8vw, 110px);
+  margin: 118px auto 0;
+  padding: 72px 0 120px;
+  border-top: 1px solid var(--line);
+}
+
+.resource-intro > span {
+  display: block;
+  margin-bottom: 20px;
+  color: var(--muted);
+  font: 600 11px/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.resource-intro h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 500 clamp(34px, 4.2vw, 58px)/0.98 var(--font-display);
+  letter-spacing: -0.045em;
+}
+
+.resource-intro h2 em { font-weight: 400; }
+
+.resource-intro p {
+  max-width: 38ch;
+  margin: 26px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.resource-grid a {
+  display: flex;
+  min-height: 190px;
+  padding: 24px;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.resource-grid a:nth-child(odd) { border-right: 1px solid var(--line); }
+.resource-grid a:hover { background: var(--surface-soft); transform: translateY(-2px); }
+.resource-grid small { color: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.resource-grid b { margin-top: auto; font: 500 19px/1.2 var(--font-display); letter-spacing: -0.025em; }
+.resource-grid span { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
 .sdk-code .editor-window {
   margin-top: 0;
 }
@@ -1536,6 +1591,10 @@ main.playground .sdk-intro h2 {
   .implementation-intro h3 { font-size: 24px; }
   .implementation-copy { gap: 14px; }
   .implementation-divider { min-height: 58px; gap: 10px; }
+  .resource-library { grid-template-columns: 1fr; gap: 40px; margin-top: 82px; padding: 58px 0 84px; }
+  .resource-grid { grid-template-columns: 1fr; }
+  .resource-grid a:nth-child(odd) { border-right: 0; }
+  .resource-grid a { min-height: 154px; padding: 20px 0; }
 }
 
 /* Pair the playground statement with the reason the library exists. */
@@ -2148,4 +2207,15 @@ main.playground .sdk-intro h2 {
   .appearance-details .switch {
     grid-column: auto;
   }
+}
+
+/* Keep the editorial headline and project links inside narrow phone layouts. */
+@media (max-width: 520px) {
+  .intro h1 {
+    font-size: clamp(42px, 12.5vw, 50px);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+  }
+
+  .header-credit { display: none; }
 }

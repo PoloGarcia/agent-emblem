@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Build an accessible animated AI agent status indicator in React with branded thinking, loading, writing, and research states." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://agent-emblem.vercel.app/examples/ai-agent-status/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Animated AI Agent Status Indicator in React" />
+    <meta property="og:description" content="Replace generic spinners with a branded, accessible AI agent status component." />
+    <meta property="og:url" content="https://agent-emblem.vercel.app/examples/ai-agent-status/" />
+    <meta property="og:image" content="https://agent-emblem.vercel.app/og-agent-emblem.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/guide.css" />
+    <title>Animated AI Agent Status Indicator in React — AgentEmblem Example</title>
+  </head>
+  <body>
+    <header class="site-nav"><a class="brand" href="/">AgentEmblem</a><nav aria-label="Documentation"><a href="/docs/react/">React</a><a href="/docs/vercel-ai-sdk/">AI SDK</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a></nav></header>
+    <main class="guide">
+      <article class="prose">
+        <p class="eyebrow">UI pattern</p>
+        <h1>Build an animated<br /><em>AI status row.</em></h1>
+        <p class="lede">Pair your logo with clear status copy so people can see whether an agent is sending, thinking, researching, or writing.</p>
+
+        <h2 id="pattern">The compact status-row pattern</h2>
+        <p>Use a 20–24 pixel animated mark with short live copy: “Sending…”, “Thinking…”, “Searching the docs…”, or “Writing response…”.</p>
+        <pre><code>import { AgentEmblemThinking } from "agent-emblem";
+
+export function AgentStatus({ logoSvg, state, text }) {
+  return (
+    &lt;AgentEmblemThinking
+      source={logoSvg}
+      state={state}
+      text={text}
+      size={20}
+      gap={8}
+      animateVisibility
+      animateMotion
+      animateText
+      label={`Assistant status: ${text}`}
+    /&gt;
+  );
+}</code></pre>
+
+        <h2 id="sequence">Model the complete request sequence</h2>
+        <div class="card-grid">
+          <section class="card"><h3>1. Sending</h3><p>Show <code>loading</code> immediately after submission so the interface acknowledges the action.</p></section>
+          <section class="card"><h3>2. Thinking</h3><p>Use <code>thinking</code> during reasoning or planning without displaying private reasoning text.</p></section>
+          <section class="card"><h3>3. Researching</h3><p>Use <code>researching</code> while tools, retrieval, or external sources are active.</p></section>
+          <section class="card"><h3>4. Composing</h3><p>Switch to <code>composing</code> when user-visible answer text begins streaming.</p></section>
+        </div>
+
+        <h2 id="accessibility">Keep motion accessible</h2>
+        <p>AgentEmblem follows <code>prefers-reduced-motion</code> and pauses automatically. Keep the text visible so the status never depends on motion alone. Give the canvas a short accessible label and use a polite live region for changing copy.</p>
+
+        <h2 id="design">Tune the mark for your interface</h2>
+        <p>Set light and dark colors for contrast in both themes. At small sizes, use a simplified mark and test each particle shape. Secondary ink separates the moving region while keeping the full logo visible.</p>
+        <div class="callout"><strong>A solid baseline.</strong> Start with a 20px mark, an 8px gap, inherited UI type, visible status copy, and motion only while the agent is active.</div>
+
+        <h2 id="when">Where this pattern works</h2>
+        <ul>
+          <li>Chat assistant response rows</li>
+          <li>Search and research side panels</li>
+          <li>Voice-agent listening and talking states</li>
+          <li>Background workflow or task progress</li>
+        </ul>
+
+        <nav class="next-links" aria-label="Related guides"><a href="/"><small>Interactive demo</small>Try every state and particle shape</a><a href="/docs/vercel-ai-sdk/"><small>Integration</small>Connect Vercel AI SDK activity</a></nav>
+      </article>
+      <aside class="toc"><b>On this page</b><a href="#pattern">Status row</a><a href="#sequence">Sequence</a><a href="#accessibility">Accessibility</a><a href="#design">Visual design</a><a href="#when">Use cases</a></aside>
+    </main>
+    <footer><span>Open source · MIT</span><span class="footer-links"><a href="https://www.npmjs.com/package/agent-emblem">npm</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a><a href="https://pologarcia.is">Polo Garcia</a></span></footer>
+  </body>
+</html>

@@ -33,7 +33,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && tsc -p tsconfig.lib.json",
-    "build:site": "tsc -b && vite build --config vite.site.config.ts",
+    "build:site": "tsc -b && vite build --config vite.site.config.ts && vite build --config vite.ssr.config.ts && node scripts/prerender-site.mjs",
     "check": "npm run typecheck && npm test && npm run build && npm run build:site",
     "preview": "vite preview",
     "test": "vitest run",

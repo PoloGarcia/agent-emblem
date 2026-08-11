@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#11110f"/>
+  <path d="M0 520C210 460 305 610 505 540S835 420 1200 510V630H0Z" fill="#181916"/>
+  <g fill="#62e6a7">
+    <circle cx="950" cy="112" r="8"/><circle cx="922" cy="157" r="8"/><circle cx="978" cy="157" r="8"/>
+    <circle cx="895" cy="203" r="8"/><circle cx="950" cy="203" r="8"/><circle cx="1005" cy="203" r="8"/>
+    <circle cx="868" cy="249" r="8"/><circle cx="923" cy="249" r="8"/><circle cx="978" cy="249" r="8"/><circle cx="1032" cy="249" r="8"/>
+    <circle cx="840" cy="295" r="8"/><circle cx="895" cy="295" r="8"/><circle cx="950" cy="295" r="8"/><circle cx="1005" cy="295" r="8"/><circle cx="1060" cy="295" r="8"/>
+  </g>
+  <g fill="#4b735e">
+    <circle cx="840" cy="341" r="7"/><circle cx="895" cy="341" r="7"/><circle cx="950" cy="341" r="7"/><circle cx="1005" cy="341" r="7"/><circle cx="1060" cy="341" r="7"/>
+  </g>
+  <text x="84" y="108" fill="#a5a69f" font-family="Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="2">AGENTEMBLEM · OPEN SOURCE</text>
+  <text x="78" y="258" fill="#f4f1e8" font-family="Georgia, serif" font-size="68" font-weight="400" letter-spacing="-3">Animated identity</text>
+  <text x="78" y="335" fill="#f4f1e8" font-family="Georgia, serif" font-size="68" font-style="italic" font-weight="400" letter-spacing="-3">for every AI agent.</text>
+  <text x="84" y="416" fill="#a5a69f" font-family="Arial, sans-serif" font-size="25">Branded thinking, loading, and tool-use states for React.</text>
+  <rect x="84" y="482" width="374" height="62" rx="12" fill="#f4f1e8"/>
+  <text x="111" y="522" fill="#11110f" font-family="Courier New, monospace" font-size="21">npm install agent-emblem</text>
+</svg>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Install AgentEmblem and add animated AI agent logos and status indicators to a React application." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://agent-emblem.vercel.app/docs/react/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Use AgentEmblem in React" />
+    <meta property="og:description" content="A practical React guide to animated AI agent logos, loading states, and status indicators." />
+    <meta property="og:url" content="https://agent-emblem.vercel.app/docs/react/" />
+    <meta property="og:image" content="https://agent-emblem.vercel.app/og-agent-emblem.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/guide.css" />
+    <title>Use AgentEmblem in React — Installation and Component Guide</title>
+  </head>
+  <body>
+    <header class="site-nav"><a class="brand" href="/">AgentEmblem</a><nav aria-label="Documentation"><a href="/docs/react/">React</a><a href="/docs/vercel-ai-sdk/">AI SDK</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a></nav></header>
+    <main class="guide">
+      <article class="prose">
+        <p class="eyebrow">React guide</p>
+        <h1>Add animated agent status<br /><em>to your React app.</em></h1>
+        <p class="lede">AgentEmblem turns your SVG or PNG logo into an accessible status indicator for thinking, loading, composing, researching, listening, and talking.</p>
+
+        <h2 id="install">Install the package</h2>
+        <p>AgentEmblem supports React 18 and newer. Install it from npm, then import the animated mark or the mark with status copy.</p>
+        <pre><code>npm install agent-emblem</code></pre>
+        <pre><code>import { AgentEmblem, AgentEmblemThinking } from "agent-emblem";</code></pre>
+
+        <h2 id="first-emblem">Render your first emblem</h2>
+        <p>Pass SVG markup, a data URL, an object URL, or a CORS-enabled image URL to <code>source</code>. AgentEmblem samples the visible artwork and redraws it with particles.</p>
+        <pre><code>import { AgentEmblem } from "agent-emblem";
+import logoUrl from "./logo.svg";
+
+export function AssistantMark() {
+  return (
+    &lt;AgentEmblem
+      source={logoUrl}
+      state="thinking"
+      size={32}
+      color={{ light: "#18181b", dark: "#fafafa" }}
+      colorMode="system"
+      animateVisibility
+      animateMotion
+      label="Assistant is thinking"
+    /&gt;
+  );
+}</code></pre>
+        <div class="callout"><strong>Write a useful label.</strong> Screen readers cannot read canvas artwork, so use <code>label</code> to name the current status.</div>
+
+        <h2 id="status-copy">Pair the mark with status copy</h2>
+        <p><code>AgentEmblemThinking</code> places live status copy beside the mark. The text inherits your app’s typography, and the optional shimmer shows when a response is streaming.</p>
+        <pre><code>&lt;AgentEmblemThinking
+  source={logoUrl}
+  state="researching"
+  text="Searching the docs…"
+  size={20}
+  gap={8}
+  animateVisibility
+  animateMotion
+  animateText
+/&gt;</code></pre>
+
+        <h2 id="states">Choose an agent state</h2>
+        <div class="card-grid">
+          <section class="card"><h3>Thinking and loading</h3><p>Use <code>thinking</code> while the agent reasons and <code>loading</code> while a request starts.</p></section>
+          <section class="card"><h3>Composing</h3><p>Use <code>composing</code> while answer text streams into the interface.</p></section>
+          <section class="card"><h3>Researching</h3><p>Use <code>researching</code> during tool calls, source retrieval, or document lookup.</p></section>
+          <section class="card"><h3>Listening and talking</h3><p>Use <code>listening</code> and <code>talking</code> for voice agents.</p></section>
+        </div>
+
+        <h2 id="compact">Design for compact UI</h2>
+        <p>At 16–40 pixels, use a simplified logo with clear negative space. AgentEmblem reduces sampling density at small sizes, but the source artwork still determines how recognizable the result is. Test the exact size used in your status row, toolbar, or composer.</p>
+
+        <nav class="next-links" aria-label="Related guides"><a href="/docs/vercel-ai-sdk/"><small>Next guide</small>Connect Vercel AI SDK activity</a><a href="/examples/animated-svg-logo/"><small>Example</small>Animate an SVG or PNG logo</a></nav>
+      </article>
+      <aside class="toc"><b>On this page</b><a href="#install">Install</a><a href="#first-emblem">First emblem</a><a href="#status-copy">Status copy</a><a href="#states">Agent states</a><a href="#compact">Compact UI</a></aside>
+    </main>
+    <footer><span>Open source · MIT</span><span class="footer-links"><a href="https://www.npmjs.com/package/agent-emblem">npm</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a><a href="https://pologarcia.is">Polo Garcia</a></span></footer>
+  </body>
+</html>

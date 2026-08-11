@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Connect Vercel AI SDK useChat status and message parts to animated AgentEmblem React components." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://agent-emblem.vercel.app/docs/vercel-ai-sdk/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="AgentEmblem with the Vercel AI SDK" />
+    <meta property="og:description" content="Map useChat activity to branded thinking, writing, loading, and tool-use states." />
+    <meta property="og:url" content="https://agent-emblem.vercel.app/docs/vercel-ai-sdk/" />
+    <meta property="og:image" content="https://agent-emblem.vercel.app/og-agent-emblem.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/guide.css" />
+    <title>AgentEmblem with the Vercel AI SDK — useChat Status Guide</title>
+  </head>
+  <body>
+    <header class="site-nav"><a class="brand" href="/">AgentEmblem</a><nav aria-label="Documentation"><a href="/docs/react/">React</a><a href="/docs/vercel-ai-sdk/">AI SDK</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a></nav></header>
+    <main class="guide">
+      <article class="prose">
+        <p class="eyebrow">Vercel AI SDK guide</p>
+        <h1>Connect AgentEmblem<br /><em>to the Vercel AI SDK.</em></h1>
+        <p class="lede">Map <code>useChat</code> status and message parts to your animated logo. Submitted requests show loading, reasoning shows thinking, text shows composing, and tool calls show researching.</p>
+
+        <h2 id="install">Install both libraries</h2>
+        <pre><code>npm install agent-emblem ai @ai-sdk/react</code></pre>
+        <p>AI SDK support is optional. AgentEmblem does not bundle AI SDK packages. Apps with another streaming setup can control <code>state</code> directly.</p>
+
+        <h2 id="activity">Create an activity object</h2>
+        <p>Pair the current chat status with the latest message part. AgentEmblem reads those two values and maps them to an animation state.</p>
+        <pre><code>import { useChat } from "@ai-sdk/react";
+import {
+  AgentEmblemThinking,
+  getAgentEmblemStatusCopyFromAIActivity,
+} from "agent-emblem";
+
+export function AssistantStatus({ logoSvg }) {
+  const { messages, status } = useChat();
+  const part = messages.at(-1)?.parts.at(-1);
+  const activity = { status, part };
+  const text = getAgentEmblemStatusCopyFromAIActivity(activity);
+
+  return (
+    &lt;AgentEmblemThinking
+      source={logoSvg}
+      activity={activity}
+      text={text}
+      size={20}
+      animateVisibility
+      animateMotion
+      animateText
+    /&gt;
+  );
+}</code></pre>
+
+        <h2 id="mapping">Default activity mapping</h2>
+        <div class="card-grid">
+          <section class="card"><h3>Submitted → loading</h3><p>Use <code>loading</code> after the user submits a message and before the response starts.</p></section>
+          <section class="card"><h3>Reasoning → thinking</h3><p>Reasoning stream parts use the contour-based <code>thinking</code> state.</p></section>
+          <section class="card"><h3>Text → composing</h3><p>Text start, delta, and completed parts use <code>composing</code>.</p></section>
+          <section class="card"><h3>Tools and sources → researching</h3><p>Tool calls, tool results, and source parts use <code>researching</code>.</p></section>
+        </div>
+
+        <h2 id="privacy">Show status, not private reasoning</h2>
+        <p>The copy helper returns short labels such as “Thinking…” and “Using a tool…”. It never displays chain-of-thought. Only customize the labels with information your app has chosen to show.</p>
+        <div class="callout"><strong>Avoid visual flicker.</strong> Terminal stream events retain the last meaningful active state until the next part or the final idle transition.</div>
+
+        <h2 id="manual">Use manual state when needed</h2>
+        <p>If your app has its own event model, skip <code>activity</code> and pass one of the seven states directly. This works with any model provider or backend.</p>
+        <pre><code>&lt;AgentEmblem
+  source={logoSvg}
+  state={toolIsRunning ? "researching" : "idle"}
+  size={24}
+  animateVisibility
+  animateMotion
+/&gt;</code></pre>
+
+        <nav class="next-links" aria-label="Related guides"><a href="/docs/react/"><small>React fundamentals</small>Install and customize AgentEmblem</a><a href="/examples/ai-agent-status/"><small>Example</small>Design an AI status indicator</a></nav>
+      </article>
+      <aside class="toc"><b>On this page</b><a href="#install">Install</a><a href="#activity">Activity object</a><a href="#mapping">State mapping</a><a href="#privacy">Privacy</a><a href="#manual">Manual state</a></aside>
+    </main>
+    <footer><span>Open source · MIT</span><span class="footer-links"><a href="https://www.npmjs.com/package/agent-emblem">npm</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a><a href="https://pologarcia.is">Polo Garcia</a></span></footer>
+  </body>
+</html>

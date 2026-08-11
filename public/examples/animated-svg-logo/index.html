@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Animate an SVG or transparent PNG logo as a particle-based React component for AI agents and assistant status UI." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://agent-emblem.vercel.app/examples/animated-svg-logo/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Animate an SVG Logo in React with AgentEmblem" />
+    <meta property="og:description" content="Turn SVG and PNG artwork into responsive particle animations for AI agent states." />
+    <meta property="og:url" content="https://agent-emblem.vercel.app/examples/animated-svg-logo/" />
+    <meta property="og:image" content="https://agent-emblem.vercel.app/og-agent-emblem.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/guide.css" />
+    <title>Animate an SVG or PNG Logo in React — AgentEmblem Example</title>
+  </head>
+  <body>
+    <header class="site-nav"><a class="brand" href="/">AgentEmblem</a><nav aria-label="Documentation"><a href="/docs/react/">React</a><a href="/docs/vercel-ai-sdk/">AI SDK</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a></nav></header>
+    <main class="guide">
+      <article class="prose">
+        <p class="eyebrow">Logo animation example</p>
+        <h1>Animate an SVG logo<br /><em>in React.</em></h1>
+        <p class="lede">AgentEmblem samples the visible shape of an SVG or PNG and redraws it as particles. Each agent state moves those particles differently while keeping the original silhouette recognizable.</p>
+
+        <h2 id="source">Choose a source format</h2>
+        <p><strong>Start with SVG when possible.</strong> It stays sharp, keeps clean transparency, and preserves fine strokes. Transparent 32-bit PNG files also work well at 256 pixels or larger.</p>
+        <div class="card-grid">
+          <section class="card"><h3>Raw SVG markup</h3><p>Pass a complete SVG string when the artwork comes from app data or a CMS.</p></section>
+          <section class="card"><h3>Imported asset URL</h3><p>Import a local SVG or PNG through your bundler and pass the resulting URL directly to <code>source</code>.</p></section>
+          <section class="card"><h3>Data or object URL</h3><p>Use a data URL or object URL for user-uploaded artwork and temporary previews.</p></section>
+          <section class="card"><h3>Remote image</h3><p>Remote URLs work when the image host permits cross-origin canvas access.</p></section>
+        </div>
+
+        <h2 id="import">Import and animate a logo</h2>
+        <pre><code>import { AgentEmblem } from "agent-emblem";
+import logoUrl from "./brand-mark.svg";
+
+export function AnimatedLogo() {
+  return (
+    &lt;AgentEmblem
+      source={logoUrl}
+      state="thinking"
+      size={96}
+      density="auto"
+      shape="circle"
+      dotScale={0.28}
+      animateVisibility
+      animateMotion
+    /&gt;
+  );
+}</code></pre>
+
+        <h2 id="fidelity">Preserve logo fidelity</h2>
+        <p>Trim transparent padding and use artwork with a clear silhouette and negative space. Fine details need more room than a geometric mark. For 16–20 pixel UI, use a compact brand mark instead of a detailed full logo.</p>
+        <div class="callout"><strong>Use transparent artwork.</strong> AgentEmblem can separate a uniform background from the mark, but transparent SVG and PNG files produce more predictable results.</div>
+
+        <h2 id="states">Animate purposefully</h2>
+        <p>Choose the state that matches the agent’s current work. Thinking traces the contour, loading draws outward, composing writes through the silhouette, researching sweeps across the mark, and voice states pulse through its bounds.</p>
+
+        <h2 id="performance">Keep rendering efficient</h2>
+        <p>AgentEmblem shares prepared masks between component instances, and the canvas backing store matches the rendered element’s physical pixel size. Reuse the same source string or URL so the browser can reuse that work.</p>
+
+        <nav class="next-links" aria-label="Related guides"><a href="/"><small>Interactive demo</small>Upload a logo and compare states</a><a href="/examples/ai-agent-status/"><small>UI pattern</small>Build a compact agent status row</a></nav>
+      </article>
+      <aside class="toc"><b>On this page</b><a href="#source">Source formats</a><a href="#import">Import</a><a href="#fidelity">Fidelity</a><a href="#states">Motion states</a><a href="#performance">Performance</a></aside>
+    </main>
+    <footer><span>Open source · MIT</span><span class="footer-links"><a href="https://www.npmjs.com/package/agent-emblem">npm</a><a href="https://github.com/pologarcia/agent-emblem">GitHub</a><a href="https://pologarcia.is">Polo Garcia</a></span></footer>
+  </body>
+</html>

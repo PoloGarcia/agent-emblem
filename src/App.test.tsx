@@ -26,4 +26,16 @@ describe("playground status preview", () => {
     expect(codeExamples[0]).toContain("AgentEmblemThinking");
     expect(codeExamples[1]).toContain('import { AgentEmblem } from "agent-emblem"');
   });
+
+  it("links to every crawlable guide and example", () => {
+    const { container } = render(<App />);
+    const resourceLinks = [...container.querySelectorAll<HTMLAnchorElement>(".resource-grid a")].map((link) => link.getAttribute("href"));
+
+    expect(resourceLinks).toEqual([
+      "/docs/react/",
+      "/docs/vercel-ai-sdk/",
+      "/examples/ai-agent-status/",
+      "/examples/animated-svg-logo/",
+    ]);
+  });
 });

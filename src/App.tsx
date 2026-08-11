@@ -483,8 +483,8 @@ export default function App() {
       </header>
 
       <section id="top" className="intro">
-        <h1>Your brand,<br /><em>your agent.</em></h1>
-        <p>Working on agents in chat and non-chat interfaces showed me how motion and brand can reveal what happens behind the scenes. That’s why I built this library.</p>
+        <h1>Animated identity,<br /><em>for every AI agent.</em></h1>
+        <p>AgentEmblem is an open-source React component for animated AI agent logos, loading states, and status indicators. Turn any SVG or PNG mark into branded motion that makes agent activity clear.</p>
       </section>
 
       <section className="workbench" aria-label="AgentEmblem playground">
@@ -678,6 +678,20 @@ export default function App() {
             <span className="code-line">  <span className="code-prop">animateVisibility</span><span className="code-punctuation">=&#123;</span><span className="code-boolean">{String(animateVisibility)}</span><span className="code-punctuation">&#125;</span></span>
             <span className="code-line"><span className="code-tag">/&gt;</span></span>
           </CodeWindow>
+        </div>
+      </section>
+
+      <section className="resource-library" aria-labelledby="resource-title">
+        <div className="resource-intro">
+          <span>Guides and examples</span>
+          <h2 id="resource-title">Build the motion<br /><em>into your product.</em></h2>
+          <p>Start with the React component, connect stream activity, or focus on the interaction pattern behind a clear agent status.</p>
+        </div>
+        <div className="resource-grid">
+          <a href="/docs/react/"><small>Guide 01</small><b>Use AgentEmblem in React</b><span>Install, render, theme, and size the component.</span></a>
+          <a href="/docs/vercel-ai-sdk/"><small>Guide 02</small><b>Connect the Vercel AI SDK</b><span>Map useChat activity to branded motion and copy.</span></a>
+          <a href="/examples/ai-agent-status/"><small>Pattern 03</small><b>Design an AI status indicator</b><span>Build an accessible compact status row.</span></a>
+          <a href="/examples/animated-svg-logo/"><small>Example 04</small><b>Animate an SVG or PNG logo</b><span>Prepare artwork and preserve fidelity at every size.</span></a>
         </div>
       </section>
     </main>
