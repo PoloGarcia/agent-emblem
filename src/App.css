@@ -1477,6 +1477,33 @@ main.playground .sdk-intro h2 {
   line-height: 1.5;
 }
 
+.implementation-copy {
+  display: grid;
+  gap: 16px;
+}
+
+.npm-install {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.npm-install span {
+  color: var(--muted);
+  user-select: none;
+}
+
 .sdk-code .editor-window {
   margin-top: 0;
 }
@@ -1507,6 +1534,7 @@ main.playground .sdk-intro h2 {
   }
 
   .implementation-intro h3 { font-size: 24px; }
+  .implementation-copy { gap: 14px; }
   .implementation-divider { min-height: 58px; gap: 10px; }
 }
 

@@ -13,4 +13,17 @@ describe("playground status preview", () => {
       expect(copy.style.color).toBe("transparent");
     });
   });
+
+  it("shows how to install and import the published npm package", () => {
+    const { container } = render(<App />);
+    const codeExamples = [...container.querySelectorAll(".editor-code")].map((example) => example.textContent);
+    const installExample = container.querySelector<HTMLElement>(".npm-install");
+
+    expect(installExample?.getAttribute("aria-label")).toBe("Install agent-emblem from npm");
+    expect(installExample?.textContent).toContain("npm install agent-emblem");
+    expect(codeExamples).toHaveLength(2);
+    expect(codeExamples[0]).toContain('from "agent-emblem"');
+    expect(codeExamples[0]).toContain("AgentEmblemThinking");
+    expect(codeExamples[1]).toContain('import { AgentEmblem } from "agent-emblem"');
+  });
 });

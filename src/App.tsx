@@ -632,9 +632,18 @@ export default function App() {
         <div className="sdk-code">
           <div className="implementation-intro">
             <h3>One package,<br />your way.</h3>
-            <p>Connect AI SDK activity or set the mark’s state with React props.</p>
+            <div className="implementation-copy">
+              <p>Install from npm, then connect AI SDK activity or set the mark’s state with React props.</p>
+              <code className="npm-install" aria-label="Install agent-emblem from npm"><span aria-hidden="true">$</span> npm install agent-emblem</code>
+            </div>
           </div>
           <CodeWindow filename="ai-sdk-status.tsx">
+            <span className="code-line"><span className="code-variable">import</span> <span className="code-punctuation">&#123;</span> <span className="code-prop">useChat</span> <span className="code-punctuation">&#125;</span> <span className="code-variable">from</span> <span className="code-string">&quot;@ai-sdk/react&quot;</span></span>
+            <span className="code-line"><span className="code-variable">import</span> <span className="code-punctuation">&#123;</span></span>
+            <span className="code-line">  <span className="code-prop">AgentEmblemThinking</span>,</span>
+            <span className="code-line">  <span className="code-prop">getAgentEmblemStatusCopyFromAIActivity</span>,</span>
+            <span className="code-line"><span className="code-punctuation">&#125;</span> <span className="code-variable">from</span> <span className="code-string">&quot;agent-emblem&quot;</span></span>
+            <span className="code-line">&nbsp;</span>
             <span className="code-line"><span className="code-variable">const</span> <span className="code-punctuation">&#123;</span> <span className="code-prop">messages</span>, <span className="code-prop">status</span> <span className="code-punctuation">&#125;</span> <span className="code-punctuation">=</span> <span className="code-variable">useChat</span><span className="code-punctuation">()</span></span>
             <span className="code-line"><span className="code-variable">const</span> <span className="code-variable">part</span> <span className="code-punctuation">=</span> <span className="code-variable">messages</span><span className="code-punctuation">.</span><span className="code-variable">at</span><span className="code-punctuation">(</span><span className="code-number">-1</span><span className="code-punctuation">)?.</span><span className="code-variable">parts</span><span className="code-punctuation">.</span><span className="code-variable">at</span><span className="code-punctuation">(</span><span className="code-number">-1</span><span className="code-punctuation">)</span></span>
             <span className="code-line"><span className="code-variable">const</span> <span className="code-variable">activity</span> <span className="code-punctuation">=</span> <span className="code-punctuation">&#123;</span> <span className="code-prop">status</span>, <span className="code-prop">part</span> <span className="code-punctuation">&#125;</span></span>
@@ -653,6 +662,8 @@ export default function App() {
           </CodeWindow>
           <div className="implementation-divider" aria-hidden="true"><i /><span>or use React props</span><i /></div>
           <CodeWindow filename="agent-emblem.tsx">
+            <span className="code-line"><span className="code-variable">import</span> <span className="code-punctuation">&#123;</span> <span className="code-prop">AgentEmblem</span> <span className="code-punctuation">&#125;</span> <span className="code-variable">from</span> <span className="code-string">&quot;agent-emblem&quot;</span></span>
+            <span className="code-line">&nbsp;</span>
             <span className="code-line"><span className="code-tag">&lt;AgentEmblem</span></span>
             <span className="code-line">  <span className="code-prop">source</span><span className="code-punctuation">=&#123;</span><span className="code-variable">logoSvg</span><span className="code-punctuation">&#125;</span></span>
             <span className="code-line">  <span className="code-prop">state</span><span className="code-punctuation">=</span><span className="code-string">&quot;{state}&quot;</span></span>
