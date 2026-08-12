@@ -1,0 +1,17 @@
+# Local dependencies and generated build output
+node_modules/
+dist/
+site-dist/
+server-dist/
+
+# Local project metadata, credentials, and development-only workspaces
+.git/
+.vercel/
+.agents/
+.env*
+skills-lock.json
+launch-video/
+
+# Local release and OS artifacts
+*.tgz
+.DS_Store

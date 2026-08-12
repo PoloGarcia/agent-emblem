@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useAgentEmblemAIState } from "./ai";
 import { useAgentEmblemColors } from "./color";
+import { agentEmblemPresets } from "./presets";
 import type { AgentEmblemProps, AgentEmblemShape, DotPoint, ThinkingStyle } from "./types";
 
 const TAU = Math.PI * 2;
@@ -17,6 +18,10 @@ const THINKING_TRACE_PERIOD_MS = 2600;
 const THINKING_BOUNCE_PERIOD_MS = 900;
 const LOADING_PERIOD_MS = 2200;
 const COMPOSING_PERIOD_MS = 2000;
+/** @internal Continuous speaking cadence; the waveform itself never stops. */
+export const TALKING_PERIOD_MS = 1900;
+/** @internal One incoming wave crossfading continuously through its centre capture. */
+export const LISTENING_PERIOD_MS = 2200;
 // Researching benefits from a slower, more deliberate inspection than the
 // other agent moments: each direction gets time to illuminate the full mark.
 const RESEARCHING_PERIOD_MS = 4800;
@@ -41,7 +46,13 @@ function isSvgSource(source: string) {
 
 type SampledMark = { points: DotPoint[]; density: number; spacing: number };
 type RasterBounds = { left: number; top: number; right: number; bottom: number };
-type PreparedSource = { inkMask: Uint8Array; side: number; bounds: RasterBounds | null; complexity: number };
+type PreparedSource = { inkMask: Uint8Array; side: number; bounds: RasterBounds | null; complexity: number; fillRatio: number };
+type SamplingCandidate = Omit<DotPoint, "x" | "y" | "u" | "v" | "edge"> & {
+  sourceX: number;
+  sourceY: number;
+  gridX: number;
+  gridY: number;
+};
 
 const preparedSourceCache = new Map<string, Promise<PreparedSource>>();
 
@@ -176,6 +187,164 @@ function suggestDensity(complexity: number, size: number) {
   return Math.min(34, baseDensity + Math.round(detailBudget * complexity));
 }
 
+/** @internal Resolves the sampling grid before any particles are generated. */
+export function getParticleSamplingPlan(
+  requestedDensity: number | "auto",
+  size: number,
+  complexity: number,
+  fillRatio: number,
+  requestedParticleCount?: number,
+) {
+  const particleCount = typeof requestedParticleCount === "number" && Number.isFinite(requestedParticleCount)
+    ? Math.round(Math.max(12, Math.min(800, requestedParticleCount)))
+    : undefined;
+  // Alpha coverage converts a desired total count into cells along the mark's
+  // longest side. Sparse cursors and sparks receive a denser grid than filled
+  // circles or squares so the requested count remains optically comparable.
+  const countDensity = particleCount
+    ? Math.ceil(Math.sqrt(particleCount / Math.max(0.08, fillRatio)) * 1.08)
+    : undefined;
+  const density = clampDensity(countDensity ?? (typeof requestedDensity === "number" ? requestedDensity : suggestDensity(complexity, size)));
+  return { density, particleCount };
+}
+
+/** @internal Resolves the candidate lattice independently from visible dot size. */
+export function getCandidateSamplingDensity(density: number, particleCount?: number, requestedPositionUniformity = 0) {
+  if (!particleCount) return density;
+  const positionUniformity = Math.max(0, Math.min(1, Number.isFinite(requestedPositionUniformity) ? requestedPositionUniformity : 0));
+  // Natural placement samples a denser field for flexible spatial selection.
+  // Uniform placement converges on the count-derived grid so dots form more
+  // deliberate rows without changing their rendered radius.
+  return clampDensity(Math.ceil(density * (1.6 - positionUniformity * 0.6)));
+}
+
+/** @internal Keeps low-count marks representative of the full source silhouette. */
+export function selectSpatiallyBalancedCandidates<T extends Pick<SamplingCandidate, "sourceX" | "sourceY" | "weight" | "seed">>(
+  candidates: T[],
+  requestedCount: number,
+) {
+  const count = Math.max(1, Math.min(candidates.length, Math.round(requestedCount)));
+  if (count >= candidates.length) return candidates;
+
+  const centerX = candidates.reduce((sum, point) => sum + point.sourceX, 0) / candidates.length;
+  const centerY = candidates.reduce((sum, point) => sum + point.sourceY, 0) / candidates.length;
+  const selected: T[] = [];
+  const chosen = new Uint8Array(candidates.length);
+  const nearestDistance = new Float64Array(candidates.length);
+  nearestDistance.fill(Number.POSITIVE_INFINITY);
+
+  // Beginning near the centroid keeps filled marks solid; every subsequent
+  // point is the candidate farthest from the points already chosen. This is a
+  // deterministic blue-noise-style distribution rather than a raster-order slice.
+  let nextIndex = 0;
+  let nearestCenter = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < candidates.length; index += 1) {
+    const point = candidates[index];
+    const distance = (point.sourceX - centerX) ** 2 + (point.sourceY - centerY) ** 2;
+    if (distance < nearestCenter || (distance === nearestCenter && point.seed < candidates[nextIndex].seed)) {
+      nearestCenter = distance;
+      nextIndex = index;
+    }
+  }
+
+  for (let selection = 0; selection < count; selection += 1) {
+    const chosenPoint = candidates[nextIndex];
+    selected.push(chosenPoint);
+    chosen[nextIndex] = 1;
+    let bestIndex = -1;
+    let bestScore = -1;
+    for (let index = 0; index < candidates.length; index += 1) {
+      if (chosen[index]) continue;
+      const point = candidates[index];
+      const distance = (point.sourceX - chosenPoint.sourceX) ** 2 + (point.sourceY - chosenPoint.sourceY) ** 2;
+      nearestDistance[index] = Math.min(nearestDistance[index], distance);
+      const score = nearestDistance[index] * (0.92 + point.weight * 0.08);
+      if (score > bestScore || (score === bestScore && (bestIndex < 0 || point.seed < candidates[bestIndex].seed))) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    }
+    if (bestIndex < 0) break;
+    nextIndex = bestIndex;
+  }
+  return selected;
+}
+
+/** @internal Builds coherent low-count layouts for the two solid built-in marks. */
+export function getLowCountUniformPresetMark(
+  preset: "circle" | "square",
+  requestedCount: number,
+  requestedMarkScale = 1,
+): SampledMark {
+  const count = Math.round(Math.max(12, Math.min(64, Number.isFinite(requestedCount) ? requestedCount : 24)));
+  const markScale = Math.max(0.5, Math.min(1, Number.isFinite(requestedMarkScale) ? requestedMarkScale : 1));
+
+  if (preset === "square") {
+    // particleCount is intentionally approximate: a complete n×n lattice reads
+    // as a square, while forcing the exact count would punch arbitrary holes.
+    const side = Math.max(3, Math.round(Math.sqrt(count)));
+    const spacing = MARK_LIVE_AREA * markScale / side;
+    const points: DotPoint[] = [];
+    for (let y = 0; y < side; y += 1) {
+      for (let x = 0; x < side; x += 1) {
+        const u = side === 1 ? 0.5 : x / (side - 1);
+        const v = side === 1 ? 0.5 : y / (side - 1);
+        const edge = x === 0 || y === 0 || x === side - 1 || y === side - 1;
+        points.push({
+          x: 0.5 + (u - 0.5) * MARK_LIVE_AREA * markScale,
+          y: 0.5 + (v - 0.5) * MARK_LIVE_AREA * markScale,
+          u,
+          v,
+          edge,
+          weight: edge ? 0.86 : 1,
+          seed: ((x * 19 + y * 31) % 997) / 997,
+        });
+      }
+    }
+    return { points, density: side, spacing };
+  }
+
+  const ringCount = Math.max(1, Math.round(Math.sqrt(count) / 2));
+  const remaining = count - 1;
+  const ringWeight = ringCount * (ringCount + 1) / 2;
+  const particlesPerRing = Array.from({ length: ringCount }, (_, index) => Math.max(3, Math.floor(remaining * (index + 1) / ringWeight)));
+  let allocated = particlesPerRing.reduce((sum, value) => sum + value, 0);
+  for (let ring = ringCount - 1; allocated < remaining; ring = ring > 0 ? ring - 1 : ringCount - 1) {
+    particlesPerRing[ring] += 1;
+    allocated += 1;
+  }
+  while (allocated > remaining) {
+    const ring = particlesPerRing.findIndex((value) => value > 3);
+    if (ring < 0) break;
+    particlesPerRing[ring] -= 1;
+    allocated -= 1;
+  }
+
+  const points: DotPoint[] = [{ x: 0.5, y: 0.5, u: 0.5, v: 0.5, edge: false, weight: 1, seed: 0.5 }];
+  const maximumRadius = MARK_LIVE_AREA * markScale / 2;
+  for (let ring = 1; ring <= ringCount; ring += 1) {
+    const particles = particlesPerRing[ring - 1];
+    const radius = maximumRadius * ring / ringCount;
+    const phase = ring % 2 === 0 ? Math.PI / particles : 0;
+    for (let index = 0; index < particles; index += 1) {
+      const angle = phase + index / particles * TAU;
+      const x = 0.5 + Math.cos(angle) * radius;
+      const y = 0.5 + Math.sin(angle) * radius;
+      points.push({
+        x,
+        y,
+        u: (x - (0.5 - maximumRadius)) / (maximumRadius * 2),
+        v: (y - (0.5 - maximumRadius)) / (maximumRadius * 2),
+        edge: ring === ringCount,
+        weight: ring === ringCount ? 0.86 : 1,
+        seed: ((ring * 53 + index * 29) % 997) / 997,
+      });
+    }
+  }
+  const density = Math.max(4, Math.round(Math.sqrt(count / (Math.PI / 4))));
+  return { points, density, spacing: MARK_LIVE_AREA * markScale / density };
+}
+
 function prepareSource(source: string): Promise<PreparedSource> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -253,7 +422,7 @@ function prepareSource(source: string): Promise<PreparedSource> {
             maxContentY = Math.max(maxContentY, y);
           }
         }
-        if (maxContentX < 0) return resolve({ inkMask, side, bounds: null, complexity: 0 });
+        if (maxContentX < 0) return resolve({ inkMask, side, bounds: null, complexity: 0, fillRatio: 0 });
 
         const bounds = {
           left: minContentX,
@@ -261,7 +430,18 @@ function prepareSource(source: string): Promise<PreparedSource> {
           right: maxContentX + 1,
           bottom: maxContentY + 1,
         };
-        resolve({ inkMask, side, bounds, complexity: measureComplexity(inkMask, side, bounds) });
+        let coverageMass = 0;
+        for (let y = bounds.top; y < bounds.bottom; y += 1) {
+          for (let x = bounds.left; x < bounds.right; x += 1) coverageMass += inkMask[y * side + x] / 255;
+        }
+        const boundsArea = Math.max(1, (bounds.right - bounds.left) * (bounds.bottom - bounds.top));
+        resolve({
+          inkMask,
+          side,
+          bounds,
+          complexity: measureComplexity(inkMask, side, bounds),
+          fillRatio: coverageMass / boundsArea,
+        });
       } catch (error) {
         reject(error instanceof Error ? error : new Error("AgentEmblem could not sample this image."));
       }
@@ -286,19 +466,39 @@ function getPreparedSource(source: string) {
   return prepared;
 }
 
-async function getPoints(source: string, requestedDensity: number | "auto", size: number): Promise<SampledMark> {
-  const { inkMask, side, bounds, complexity } = await getPreparedSource(source);
-  const density = clampDensity(typeof requestedDensity === "number" ? requestedDensity : suggestDensity(complexity, size));
-  const normalizedSpacing = MARK_LIVE_AREA / density;
+async function getPoints(
+  source: string,
+  requestedDensity: number | "auto",
+  size: number,
+  requestedMarkScale: number,
+  requestedParticleCount?: number,
+  requestedPositionUniformity = 0,
+): Promise<SampledMark> {
+  const normalizedCount = typeof requestedParticleCount === "number" && Number.isFinite(requestedParticleCount)
+    ? Math.round(Math.max(12, Math.min(800, requestedParticleCount)))
+    : undefined;
+  const positionUniformity = Math.max(0, Math.min(1, Number.isFinite(requestedPositionUniformity) ? requestedPositionUniformity : 0));
+  if (normalizedCount && normalizedCount <= 64 && positionUniformity >= 0.95) {
+    if (source === agentEmblemPresets.circle) return getLowCountUniformPresetMark("circle", normalizedCount, requestedMarkScale);
+    if (source === agentEmblemPresets.square) return getLowCountUniformPresetMark("square", normalizedCount, requestedMarkScale);
+  }
+
+  const { inkMask, side, bounds, complexity, fillRatio } = await getPreparedSource(source);
+  const { density, particleCount } = getParticleSamplingPlan(requestedDensity, size, complexity, fillRatio, requestedParticleCount);
+  const markScale = Math.max(0.5, Math.min(1, Number.isFinite(requestedMarkScale) ? requestedMarkScale : 1));
+  const normalizedSpacing = MARK_LIVE_AREA * markScale / density;
   if (!bounds) return { points: [], density, spacing: normalizedSpacing };
 
   const contentWidth = bounds.right - bounds.left;
   const contentHeight = bounds.bottom - bounds.top;
   const contentExtent = Math.max(contentWidth, contentHeight);
-  const spacing = Math.max(2, contentExtent / density);
+  // Count-limited marks need more candidate positions than visible particles;
+  // otherwise a low-resolution raster grid becomes the silhouette itself.
+  const samplingDensity = getCandidateSamplingDensity(density, particleCount, positionUniformity);
+  const spacing = Math.max(2, contentExtent / samplingDensity);
   const columns = Math.ceil(contentWidth / spacing);
   const rows = Math.ceil(contentHeight / spacing);
-  const candidates: Array<Omit<DotPoint, "x" | "y" | "u" | "v" | "edge"> & { sourceX: number; sourceY: number; gridX: number; gridY: number }> = [];
+  const candidates: SamplingCandidate[] = [];
   const occupied = new Set<string>();
 
   // Every cell integrates all of its pixels, then places one dot at the ink-weighted centroid.
@@ -309,23 +509,38 @@ async function getPoints(source: string, requestedDensity: number | "auto", size
     for (let gridX = 0; gridX < columns; gridX += 1) {
       const left = Math.floor(bounds.left + gridX * spacing);
       const right = Math.min(bounds.right, Math.floor(bounds.left + (gridX + 1) * spacing));
+      const cellCenterX = (left + right) / 2;
+      const cellCenterY = (top + bottom) / 2;
       let mass = 0;
       let weightedX = 0;
       let weightedY = 0;
+      let uniformX = cellCenterX;
+      let uniformY = cellCenterY;
+      let nearestInkDistance = Number.POSITIVE_INFINITY;
       for (let y = top; y < bottom; y += 1) {
         for (let x = left; x < right; x += 1) {
           const coverage = inkMask[y * side + x] / 255;
           mass += coverage;
           weightedX += (x + 0.5) * coverage;
           weightedY += (y + 0.5) * coverage;
+          if (coverage > 0) {
+            const distance = (x + 0.5 - cellCenterX) ** 2 + (y + 0.5 - cellCenterY) ** 2;
+            if (distance < nearestInkDistance) {
+              nearestInkDistance = distance;
+              uniformX = x + 0.5;
+              uniformY = y + 0.5;
+            }
+          }
         }
       }
       const area = Math.max(1, (right - left) * (bottom - top));
       const coverage = mass / area;
       if (coverage < 0.012) continue;
+      const inkCentroidX = weightedX / mass;
+      const inkCentroidY = weightedY / mass;
       candidates.push({
-        sourceX: weightedX / mass,
-        sourceY: weightedY / mass,
+        sourceX: inkCentroidX + (uniformX - inkCentroidX) * positionUniformity,
+        sourceY: inkCentroidY + (uniformY - inkCentroidY) * positionUniformity,
         weight: 0.7 + Math.sqrt(Math.min(1, coverage)) * 0.3,
         seed: ((gridX * 19 + gridY * 31) % 997) / 997,
         gridX,
@@ -335,12 +550,15 @@ async function getPoints(source: string, requestedDensity: number | "auto", size
     }
   }
   if (!candidates.length) return { points: [], density, spacing: normalizedSpacing };
+  const sampledCandidates = particleCount && candidates.length > particleCount
+    ? selectSpatiallyBalancedCandidates(candidates, particleCount)
+    : candidates;
   const contentCenterX = (bounds.left + bounds.right) / 2;
   const contentCenterY = (bounds.top + bounds.bottom) / 2;
-  const positioned = candidates.map((point) => ({
+  const positioned = sampledCandidates.map((point) => ({
     ...point,
-    x: 0.5 + ((point.sourceX - contentCenterX) / contentExtent) * MARK_LIVE_AREA,
-    y: 0.5 + ((point.sourceY - contentCenterY) / contentExtent) * MARK_LIVE_AREA,
+    x: 0.5 + ((point.sourceX - contentCenterX) / contentExtent) * MARK_LIVE_AREA * markScale,
+    y: 0.5 + ((point.sourceY - contentCenterY) / contentExtent) * MARK_LIVE_AREA * markScale,
   }));
   const minX = Math.min(...positioned.map((point) => point.x));
   const maxX = Math.max(...positioned.map((point) => point.x));
@@ -483,12 +701,72 @@ function researchingBeam(point: DotPoint, time: number) {
   return Math.min(1, core * 0.82 + spill * 0.34);
 }
 
+type VoiceSignal = { emphasis: number; motion: number; wave: number };
+
+function waveBand(distance: number, front: number, width: number) {
+  const offset = (distance - front) / width;
+  return Math.exp(-(offset * offset));
+}
+
+function circularDistance(a: number, b: number) {
+  const distance = Math.abs(a - b);
+  return Math.min(distance, 1 - distance);
+}
+
+/** @internal Models speech as a mirrored sine-wave trace emitted from the centre. */
+export function getTalkingVoiceSignal(point: Pick<DotPoint, "u" | "v">, time: number): VoiceSignal {
+  const distanceFromCentre = Math.min(1, Math.abs(point.u - 0.5) / 0.5);
+  const cadencePhase = (time / TALKING_PERIOD_MS) * TAU;
+  // Two harmonics make the amplitude conversational without ever allowing the
+  // trace to disappear. Because both are periodic, the modulation is seamless.
+  const phraseEnergy = Math.max(0.48, Math.min(1,
+    0.72 + Math.sin(cadencePhase) * 0.16 + Math.sin(cadencePhase * 2 + 0.8) * 0.1,
+  ));
+
+  // Equal-distance points on either side share a phase, producing one mirrored
+  // waveform that visibly propagates away from the mark's centre. Absolute time
+  // keeps phase velocity continuous across cadence-cycle boundaries.
+  const wavePhase = time * 0.009 - distanceFromCentre * TAU * 1.25;
+  const wave = Math.sin(wavePhase) * phraseEnergy;
+  const waveY = 0.5 + wave * 0.18;
+  const traceDistance = (point.v - waveY) / 0.1;
+  const trace = Math.exp(-(traceDistance * traceDistance));
+  const source = Math.exp(-((distanceFromCentre * distanceFromCentre) / 0.025)) * phraseEnergy * 0.22;
+  // A broad, quiet carrier keeps thin strokes and low-density marks involved;
+  // the brighter trace still provides the recognizable sine-wave silhouette.
+  const carrier = phraseEnergy * (0.18 + Math.abs(wave) * 0.24);
+  const emphasis = Math.min(1, Math.max(trace * phraseEnergy + source, carrier));
+
+  return { emphasis, motion: phraseEnergy, wave };
+}
+
+/** @internal Models listening as one calm ring arriving at the centre. */
+export function getListeningVoiceSignal(point: Pick<DotPoint, "u" | "v">, time: number): VoiceSignal {
+  const radialDistance = Math.min(1, Math.hypot(point.u - 0.5, point.v - 0.5) / 0.72);
+  const progress = (((time % LISTENING_PERIOD_MS) + LISTENING_PERIOD_MS) % LISTENING_PERIOD_MS) / LISTENING_PERIOD_MS;
+  const travel = smoothstep(0.02, 0.9, progress);
+  const ringFront = 1 - travel;
+  const ringRelease = 1 - smoothstep(0.82, 0.97, progress);
+  const ringCore = waveBand(radialDistance, ringFront, 0.1);
+  const ringSpill = waveBand(radialDistance, ringFront, 0.24) * 0.26;
+  const ring = Math.min(1, ringCore * 0.9 + ringSpill) * ringRelease;
+  // A circular envelope carries the centre capture across the loop boundary,
+  // while the next ring appears at the perimeter. There is always a live signal.
+  const captureDistance = circularDistance(progress, 0.91) / 0.14;
+  const captureEnvelope = Math.exp(-(captureDistance * captureDistance));
+  const capture = Math.exp(-((radialDistance * radialDistance) / 0.055)) * captureEnvelope * 0.88;
+
+  return { emphasis: Math.max(ring, capture), motion: ring, wave: 0 };
+}
+
 function stateOffset(point: DotPoint, state: NonNullable<AgentEmblemProps["state"]>, time: number, size: number, thinkingStyle: ThinkingStyle) {
   const phase = point.seed * TAU;
   const cx = point.x - 0.5;
   const cy = point.y - 0.5;
   const radius = Math.sqrt(cx * cx + cy * cy);
   const unit = size / 480;
+  const listeningUnit = size <= 40 ? Math.max(unit, 0.05) : unit;
+  const talkingUnit = size <= 40 ? Math.max(unit, 0.075) : unit;
 
   if (state === "thinking") {
     if (thinkingStyle === "bounce") {
@@ -520,13 +798,11 @@ function stateOffset(point: DotPoint, state: NonNullable<AgentEmblemProps["state
     };
   }
   if (state === "talking") {
-    // Speech radiates horizontally from the centre, like successive syllables
-    // leaving the mark. Keeping the vertical component small preserves its form.
-    const syllable = Math.max(0, Math.sin(time * 0.006 - Math.abs(cx) * 42 + phase * 0.18));
+    const speech = getTalkingVoiceSignal(point, time);
     const direction = cx === 0 ? 0 : Math.sign(cx);
     return {
-      x: direction * syllable * (4.8 + point.seed * 2.2) * unit,
-      y: Math.sin(time * 0.006 - Math.abs(cx) * 42 + phase) * 0.45 * unit,
+      x: direction * speech.motion * (1.1 + point.seed * 0.35) * talkingUnit,
+      y: speech.wave * (7.2 + point.seed * 0.4) * talkingUnit,
     };
   }
   if (state === "researching") {
@@ -534,9 +810,8 @@ function stateOffset(point: DotPoint, state: NonNullable<AgentEmblemProps["state
     return { x: 0, y: 0 };
   }
   if (state === "listening") {
-    // Listening gathers gently inward: a calm, receptive counterpoint to talking.
-    const incoming = Math.max(0, Math.sin(time * 0.0044 + radius * 30 + phase * 0.12));
-    const pull = incoming * (2.9 + point.seed * 1.2) * unit;
+    const listening = getListeningVoiceSignal(point, time);
+    const pull = listening.motion * (5 + point.seed * 1.2) * listeningUnit;
     return { x: radius ? -(cx / radius) * pull : 0, y: radius ? -(cy / radius) * pull : 0 };
   }
   return {
@@ -576,16 +851,13 @@ function stateEmphasis(point: DotPoint, state: NonNullable<AgentEmblemProps["sta
     return Math.max(stroke.nib * penPressure, stroke.wetInk * 0.62, stroke.written * 0.36) * stroke.pageFade;
   }
   if (state === "talking") {
-    const syllable = (Math.sin(time * 0.006 - Math.abs(point.u - 0.5) * 46 + point.seed * 0.35) + 1) / 2;
-    return Math.pow(syllable, 3.2);
+    return getTalkingVoiceSignal(point, time).emphasis;
   }
   if (state === "researching") {
     return researchingBeam(point, time);
   }
   if (state === "listening") {
-    // Highlight rings travel from the edge toward the centre, then resolve softly.
-    const incoming = (Math.sin(time * 0.0044 + radius * 34 + point.seed * 0.2) + 1) / 2;
-    return Math.pow(incoming, 2.8);
+    return getListeningVoiceSignal(point, time).emphasis;
   }
   const pulse = (Math.sin(time * 0.005 - radius * 28) + 1) / 2;
   return Math.pow(pulse, 2.2);
@@ -597,6 +869,8 @@ function stateEmphasis(point: DotPoint, state: NonNullable<AgentEmblemProps["sta
  */
 export function AgentEmblem({
   source,
+  preset = "circle",
+  markScale = 1,
   state = "idle",
   activity,
   color: colorProp = "#f5f5f0",
@@ -605,6 +879,9 @@ export function AgentEmblem({
   size = 240,
   density = "auto",
   dotScale = 0.28,
+  particleCount,
+  particleUniformity = 0,
+  particlePositionUniformity = 0,
   shape = "circle",
   thinkingStyle = "trace",
   animateVisibility = false,
@@ -612,6 +889,7 @@ export function AgentEmblem({
   label = "Agent emblem",
   className,
 }: AgentEmblemProps) {
+  const resolvedSource = source ?? agentEmblemPresets[preset];
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointsRef = useRef<SampledMark>({ points: [], density: 8, spacing: MARK_LIVE_AREA / 8 });
   const [sampleRevision, setSampleRevision] = useState(0);
@@ -622,7 +900,7 @@ export function AgentEmblem({
 
   useEffect(() => {
     let active = true;
-    getPoints(source, density, size)
+    getPoints(resolvedSource, density, size, markScale, particleCount, particlePositionUniformity)
       .then((mark) => {
         if (active) {
           pointsRef.current = mark;
@@ -636,7 +914,7 @@ export function AgentEmblem({
         }
       });
     return () => { active = false; };
-  }, [source, density, size]);
+  }, [resolvedSource, density, markScale, particleCount, particlePositionUniformity, size]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -667,6 +945,7 @@ export function AgentEmblem({
       // Canvas state survives hot reloads and interrupted frames; never inherit a dimmed layer.
       context.globalAlpha = 1;
       const compactScale = size <= 40 ? Math.min(dotScale, 0.24) : dotScale;
+      const uniformity = Math.max(0, Math.min(1, Number.isFinite(particleUniformity) ? particleUniformity : 0));
       const pointSpacing = pointsRef.current.spacing * size;
       const shapeScale = shape === "diamond" ? 1.16 : shape === "plus" ? 1.04 : 1;
       const minimumRadius = size <= 24 ? Math.max(0.5, 0.75 / pixelScale) : Math.max(0.42, 0.7 / pixelScale);
@@ -678,9 +957,11 @@ export function AgentEmblem({
         const offset = animateMotion ? stateOffset(point, resolvedState, motionTime, size, thinkingStyle) : { x: 0, y: 0 };
         const x = point.x * size + offset.x;
         const y = point.y * size + offset.y;
-        const pulse = resolvedState === "talking" ? 0.86 + Math.sin(motionTime * 0.009 + point.seed * 12) * 0.14 : 1;
         const emphasis = stateEmphasis(point, resolvedState, motionTime, size, animateVisibility, thinkingStyle);
-        const radius = baseDot * point.weight * pulse;
+        const pulse = resolvedState === "talking" ? 1 + emphasis * 0.08 : 1;
+        const particleWeight = 1 + (point.weight - 1) * (1 - uniformity);
+        const particlePulse = 1 + (pulse - 1) * (1 - uniformity);
+        const radius = baseDot * particleWeight * particlePulse;
         // The complete silhouette is always rendered first in the inactive ink.
         context.fillStyle = animateVisibility ? inactiveColor ?? color : color;
         const baseOpacityFloor = hasSecondaryInk
@@ -707,7 +988,8 @@ export function AgentEmblem({
           context.fillStyle = color;
           context.globalAlpha = emphasis;
           const emphasisGrowth = size <= 24 ? 0.12 : size <= 40 ? 0.2 : 0.28;
-          drawPoint(context, shape, x, y, radius * (1 + emphasis * emphasisGrowth), pixelScale, !animateMotion || reducedMotion);
+          const emphasisScale = 1 + emphasis * emphasisGrowth * (1 - uniformity);
+          drawPoint(context, shape, x, y, radius * emphasisScale, pixelScale, !animateMotion || reducedMotion);
         }
       }
       context.globalAlpha = 1;
@@ -753,7 +1035,7 @@ export function AgentEmblem({
       resizeObserver?.disconnect();
       window.removeEventListener("resize", syncBackingStore);
     };
-  }, [animateMotion, animateVisibility, color, dotScale, hasSecondaryInk, inactiveColor, reducedMotion, resolvedMode, sampleRevision, shape, size, resolvedState, thinkingStyle]);
+  }, [animateMotion, animateVisibility, color, dotScale, hasSecondaryInk, inactiveColor, particleUniformity, reducedMotion, resolvedMode, sampleRevision, shape, size, resolvedState, thinkingStyle]);
 
   return (
     <canvas

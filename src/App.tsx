@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/react";
-import { AgentEmblem, AgentEmblemThinking, getAgentEmblemStatusCopyFromAIActivity, type AgentEmblemShape, type AgentEmblemState, type ThinkingStyle } from "./lib";
+import { AgentEmblem, AgentEmblemThinking, agentEmblemPresets, getAgentEmblemStatusCopyFromAIActivity, type AgentEmblemPreset, type AgentEmblemShape, type AgentEmblemState, type ThinkingStyle } from "./lib";
 import vercelSource from "./assets/vercel-icon.svg";
 import polarSource from "./assets/polar.svg";
 import nubankSource from "./assets/nubank-logo.svg";
@@ -10,7 +10,7 @@ import "./App.css";
 
 type ThemeMode = "light" | "dark";
 type ThemeColors = Record<ThemeMode, string>;
-type Sample = { id: string; name: string; source: string; activeInk: ThemeColors; inactiveInk: ThemeColors };
+type Sample = { id: string; name: string; source: string; activeInk: ThemeColors; inactiveInk: ThemeColors; preset?: AgentEmblemPreset };
 type StreamStage = {
   id: string;
   mode: "prompt" | "status" | "response";
@@ -23,12 +23,81 @@ type StreamStage = {
 };
 
 function SourcePreview({ source, color }: { source: string; color: string }) {
-  const mask = `url("${source}")`;
+  const previewSource = source.trim().startsWith("<svg")
+    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`
+    : source;
+  const mask = `url("${previewSource}")`;
   return <i className="source-preview" aria-hidden="true"><i className="source-preview-mark" style={{ backgroundColor: color, maskImage: mask, WebkitMaskImage: mask } as CSSProperties} /></i>;
 }
 
 function WindowDots() {
   return <span className="window-dots" aria-hidden="true"><i /><i /><i /></span>;
+}
+
+const INSTALL_COMMAND = "npm install agent-emblem";
+
+function InstallCommand({ placement }: { placement: "hero" | "implementation" }) {
+  const [copyCount, setCopyCount] = useState(0);
+  const copied = copyCount > 0;
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopyCount(0), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copied, copyCount]);
+
+  async function copyInstallCommand() {
+    try {
+      let didCopy = false;
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(INSTALL_COMMAND);
+          didCopy = true;
+        } catch {
+          didCopy = false;
+        }
+      }
+      if (!didCopy) {
+        const field = document.createElement("textarea");
+        field.value = INSTALL_COMMAND;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        didCopy = document.execCommand("copy");
+        field.remove();
+      }
+      if (!didCopy) throw new Error("Clipboard unavailable");
+      setCopyCount((count) => count + 1);
+    } catch {
+      setCopyCount(0);
+    }
+  }
+
+  return (
+    <button
+      className={`npm-install npm-install--${placement}`}
+      type="button"
+      aria-label={copied ? "npm install command copied" : "Copy npm install command"}
+      data-copied={copied || undefined}
+      onClick={copyInstallCommand}
+    >
+      <span className="install-prompt" aria-hidden="true">$</span>
+      <code>{INSTALL_COMMAND}</code>
+      <span className="install-copy-action" aria-hidden="true">
+        <span className="install-copy-state install-copy-state--ready" data-active={!copied || undefined}>
+          <svg viewBox="0 0 16 16"><rect x="5.25" y="5.25" width="7" height="7" rx="1.25" /><path d="M10.75 5.25v-1.5h-7v7h1.5" /></svg>
+          <span>Copy</span>
+        </span>
+        <span className="install-copy-state install-copy-state--success" data-active={copied || undefined}>
+          <svg viewBox="0 0 16 16"><path d="m3.5 8.2 2.8 2.8 6.2-6.2" /></svg>
+          <span>Copied</span>
+        </span>
+      </span>
+      <span className="install-copy-status" role="status" aria-live="polite">{copied ? "Copied to clipboard" : ""}</span>
+    </button>
+  );
 }
 
 function CodeWindow({ filename, children }: { filename: string; children: ReactNode }) {
@@ -42,6 +111,10 @@ function CodeWindow({ filename, children }: { filename: string; children: ReactN
 }
 
 const samples: Sample[] = [
+  { id: "circle", name: "Circle", source: agentEmblemPresets.circle, preset: "circle", activeInk: { light: "#11110f", dark: "#ffffff" }, inactiveInk: { light: "#696a64", dark: "#696a64" } },
+  { id: "square", name: "Square", source: agentEmblemPresets.square, preset: "square", activeInk: { light: "#11110f", dark: "#ffffff" }, inactiveInk: { light: "#696a64", dark: "#696a64" } },
+  { id: "spark", name: "Spark", source: agentEmblemPresets.spark, preset: "spark", activeInk: { light: "#ad5700", dark: "#ffcf70" }, inactiveInk: { light: "#8a6a47", dark: "#7e6331" } },
+  { id: "cursor", name: "Cursor", source: agentEmblemPresets.cursor, preset: "cursor", activeInk: { light: "#0d5bd7", dark: "#8eb4ff" }, inactiveInk: { light: "#58759f", dark: "#465b7d" } },
   { id: "vercel", name: "Vercel", source: vercelSource, activeInk: { light: "#11110f", dark: "#ffffff" }, inactiveInk: { light: "#696a64", dark: "#696a64" } },
   { id: "nu", name: "Nu", source: nubankSource, activeInk: { light: "#7200ad", dark: "#b973ff" }, inactiveInk: { light: "#8a5ca6", dark: "#70408f" } },
   { id: "ramp", name: "Ramp", source: rampSource, activeInk: { light: "#415000", dark: "#e4f222" }, inactiveInk: { light: "#737a42", dark: "#697019" } },
@@ -140,6 +213,22 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+function rangeProgress(value: number, minimum: number, maximum: number) {
+  return { "--range-progress": `${clamp((value - minimum) / (maximum - minimum) * 100, 0, 100)}%` } as CSSProperties;
+}
+
+function particleSizingLabel(value: number) {
+  if (value <= 0) return "Off";
+  if (value >= 1) return "On";
+  return `${Math.round(value * 100)}% same`;
+}
+
+function particleSpacingLabel(value: number) {
+  if (value <= 0) return "Off";
+  if (value >= 1) return "On";
+  return `${Math.round(value * 100)}% even`;
+}
+
 function hexToHsv(hex: string): HsvColor {
   const color = HEX_COLOR.test(hex) ? hex : "#000000";
   const red = Number.parseInt(color.slice(1, 3), 16) / 255;
@@ -233,6 +322,10 @@ export default function App() {
   const [useSecondaryInk, setUseSecondaryInk] = useState(true);
   const [openColorPicker, setOpenColorPicker] = useState<ColorPickerId>(null);
   const [shape, setShape] = useState<AgentEmblemShape>("circle");
+  const [markScale, setMarkScale] = useState(1);
+  const [particleCount, setParticleCount] = useState<number | undefined>(undefined);
+  const [particleUniformity, setParticleUniformity] = useState(0);
+  const [particlePositionUniformity, setParticlePositionUniformity] = useState(0);
   const [thinkingStyle, setThinkingStyle] = useState<ThinkingStyle>("trace");
   const [animateVisibility, setAnimateVisibility] = useState(true);
   const [streamStage, setStreamStage] = useState<StreamStage>(streamStages[0]);
@@ -252,6 +345,7 @@ export default function App() {
   const sourceDropDepth = useRef(0);
   const reducedMotion = useReducedMotion();
   const source = uploaded?.source ?? sample.source;
+  const preset = uploaded ? undefined : sample.preset;
   const markName = uploaded?.name ?? sample.name;
   const color = colors[themeMode];
   const inactiveColor = inactiveColors[themeMode];
@@ -473,7 +567,17 @@ export default function App() {
     <>
     <main className={`playground ${themeMode}`}>
       <header>
-        <a className="wordmark" href="#top">AgentEmblem</a>
+        <a className="wordmark" href="#top" aria-label="agentemblem home">
+          <span className="wordmark-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <rect x="2" y="2" width="8" height="8" rx="2" />
+              <rect x="14" y="2" width="8" height="8" rx="2" />
+              <rect x="2" y="14" width="8" height="8" rx="2" />
+              <path d="M14.5 18h7M18 14.5v7" />
+            </svg>
+          </span>
+          <span className="wordmark-type">agent<span>emblem</span></span>
+        </a>
         <nav className="header-actions" aria-label="Project links">
           <a className="header-credit" href="https://pologarcia.is" target="_blank" rel="noreferrer">Made by pologarcia.is</a>
           <a className="header-github" href="https://github.com/pologarcia/agent-emblem" target="_blank" rel="noreferrer">
@@ -486,7 +590,24 @@ export default function App() {
 
       <section id="top" className="intro">
         <h1>Animated identity,<br /><em>for every AI agent.</em></h1>
-        <p>AgentEmblem is an open-source React component for animated AI agent logos, loading states, and status indicators. Turn any SVG or PNG mark into branded motion that makes agent activity clear.</p>
+        <div className="intro-copy">
+          <p>AgentEmblem is an open-source React component for animated AI agent logos, loading states, and status indicators. Turn any SVG or PNG mark into branded motion that makes agent activity clear.</p>
+          <InstallCommand placement="hero" />
+        </div>
+      </section>
+
+      <section className="release-highlights" aria-labelledby="release-title">
+        <div className="release-heading">
+          <span>v0.2.0 · New release</span>
+          <h2 id="release-title">More control,<br /><em>less setup.</em></h2>
+          <p>Start with a built-in mark or your own artwork, then shape every particle without losing the identity underneath.</p>
+        </div>
+        <div className="release-grid">
+          <article><small>01</small><b>Four built-in marks</b><span>Circle, square, spark, and cursor work without a logo file.</span><code>preset</code></article>
+          <article><small>02</small><b>Particle composition</b><span>Tune footprint, count, size consistency, and spacing from React props.</span><code>markScale · particleCount</code></article>
+          <article><small>03</small><b>Smarter silhouettes</b><span>Spatially balanced sampling keeps sparse and low-count marks recognizable.</span><code>particleUniformity</code></article>
+          <article><small>04</small><b>Clearer voice motion</b><span>Talking emits a waveform; listening gathers an inward ring.</span><code>talking · listening</code></article>
+        </div>
       </section>
 
       <section className="workbench" aria-label="AgentEmblem playground">
@@ -499,17 +620,48 @@ export default function App() {
               onDragLeave={handleSourceDragLeave}
               onDrop={handleSourceDrop}
             >
-              <div className="source-picker-label"><span>Logo</span></div>
-              <div className="source-options" role="group" aria-label="Logo source">
-                {samples.map((item) => <button key={item.id} type="button" onClick={() => selectSample(item)} aria-label={`Use ${item.name} logo`} title={item.name} aria-pressed={!uploaded && item.id === sample.id} className={`source-option${!uploaded && item.id === sample.id ? " chosen" : ""}`}><SourcePreview source={item.source} color={item.activeInk[themeMode]} /></button>)}
+              <div className="source-picker-label">
+                <span>Mark</span>
+                <small>4 built-ins · free to use</small>
+              </div>
+              <div className="source-options" role="group" aria-label="Mark source">
+                {samples.map((item, index) => <button key={item.id} type="button" onClick={() => selectSample(item)} aria-label={`Use ${item.name} ${item.preset ? "mark" : "logo"}`} title={item.name} aria-pressed={!uploaded && item.id === sample.id} className={`source-option${!uploaded && item.id === sample.id ? " chosen" : ""}${index === 4 ? " source-option--brands" : ""}`}><SourcePreview source={item.source} color={item.activeInk[themeMode]} /></button>)}
                 {uploaded && <button type="button" className="source-option chosen" aria-label={`Use uploaded ${markName} logo`} title={markName}><SourcePreview source={uploaded.source} color={color} /></button>}
                 <button type="button" className="source-option source-upload" aria-label="Upload your logo" title="Upload your logo" onClick={() => uploadRef.current?.click()}>Upload</button>
               </div>
             </div>
-            <div className="shape-control">
-              <span className="control-label">Shape</span>
-              <div className="shape-picker" role="group" aria-label="Sampling shape">{shapes.map((item) => <button key={item} type="button" onClick={() => setShape(item)} className={shape === item ? "chosen" : ""}><i className={`shape-swatch shape-swatch--${item}`} aria-hidden="true" /><span>{item}</span></button>)}</div>
-            </div>
+            <details className="optional-parameters" open>
+              <summary>
+                <span><b>Optional parameters</b><small>Leave these untouched to keep the original library rendering.</small></span>
+                <i aria-hidden="true" />
+              </summary>
+              <div className="optional-parameters-body">
+                <label className="parameter-control parameter-control--slider">
+                  <input className="parameter-slider" type="range" min="0.5" max="1" step="0.01" value={markScale} style={rangeProgress(markScale, 0.5, 1)} aria-label="Mark size" onChange={(event) => setMarkScale(Number(event.target.value))} />
+                  <span className="parameter-slider-label"><b>Mark size</b><small>markScale</small></span>
+                  <output className="parameter-slider-value">{Math.round(markScale * 100)}%</output>
+                </label>
+                <label className="parameter-control parameter-control--slider">
+                  <input className="parameter-slider" type="range" min="24" max="240" step="8" value={particleCount ?? 80} style={rangeProgress(particleCount ?? 80, 24, 240)} aria-label="Particle count" onChange={(event) => setParticleCount(Number(event.target.value))} />
+                  <span className="parameter-slider-label"><b>Particle count</b><small>particleCount</small></span>
+                  <output className="parameter-slider-value">{particleCount === undefined ? "Auto" : `≈ ${particleCount}`}</output>
+                </label>
+                <label className="parameter-control parameter-control--slider">
+                  <input className="parameter-slider" type="range" min="0" max="1" step="0.05" value={particleUniformity} style={rangeProgress(particleUniformity, 0, 1)} aria-label="Make particles the same size" onChange={(event) => setParticleUniformity(Number(event.target.value))} />
+                  <span className="parameter-slider-label"><b>Same-size particles</b><small>particleUniformity</small></span>
+                  <output className="parameter-slider-value">{particleSizingLabel(particleUniformity)}</output>
+                </label>
+                <label className="parameter-control parameter-control--slider">
+                  <input className="parameter-slider" type="range" min="0" max="1" step="0.05" value={particlePositionUniformity} style={rangeProgress(particlePositionUniformity, 0, 1)} aria-label="Make particle spacing more even" onChange={(event) => setParticlePositionUniformity(Number(event.target.value))} />
+                  <span className="parameter-slider-label"><b>Even particle spacing</b><small>particlePositionUniformity</small></span>
+                  <output className="parameter-slider-value">{particleSpacingLabel(particlePositionUniformity)}</output>
+                </label>
+                <div className="parameter-control shape-control">
+                  <span className="parameter-label"><b>Particle shape</b><small>shape</small></span>
+                  <div className="shape-picker" role="group" aria-label="Particle shape">{shapes.map((item) => <button key={item} type="button" onClick={() => setShape(item)} aria-pressed={shape === item} className={shape === item ? "chosen" : ""}><i className={`shape-swatch shape-swatch--${item}`} aria-hidden="true" /><span>{item}</span></button>)}</div>
+                </div>
+              </div>
+            </details>
           </div>
           <div className="toolbar-controls">
             <div className="control-group">
@@ -529,7 +681,7 @@ export default function App() {
           <div className="usage-heading"><span>Preview at real UI sizes</span><b>{markName}</b></div>
           <div className="usage-grid">
             {sizes.map((size) => <article className="usage-card" key={size}>
-              {statusPhase === "hidden" ? <AgentEmblem source={source} state={state} color={colors} inactiveColor={secondaryInk} colorMode={themeMode} size={size} shape={shape} thinkingStyle={thinkingStyle} animateVisibility={animateVisibility} label={`${markName} ${size} pixel agent emblem`} /> : <AgentEmblemThinking source={source} state={state} color={colors} inactiveColor={secondaryInk} colorMode={themeMode} size={size} shape={shape} thinkingStyle={thinkingStyle} animateVisibility={animateVisibility} animateText gap={6} label={`${markName} ${size} pixel agent emblem`} className="assistant-status" textClassName={`thinking-label thinking-label--${statusPhase}`} text={`${displayedStatus}...`} textStyle={{ "--status-size": `${Math.min(16, Math.max(12, Math.round(size * 0.62)))}px` } as CSSProperties} />}
+              {statusPhase === "hidden" ? <AgentEmblem source={preset ? undefined : source} preset={preset} markScale={markScale} particleCount={particleCount} particleUniformity={particleUniformity} particlePositionUniformity={particlePositionUniformity} state={state} color={colors} inactiveColor={secondaryInk} colorMode={themeMode} size={size} shape={shape} thinkingStyle={thinkingStyle} animateVisibility={animateVisibility} animateMotion={animateVisibility} label={`${markName} ${size} pixel agent emblem`} /> : <AgentEmblemThinking source={preset ? undefined : source} preset={preset} markScale={markScale} particleCount={particleCount} particleUniformity={particleUniformity} particlePositionUniformity={particlePositionUniformity} state={state} color={colors} inactiveColor={secondaryInk} colorMode={themeMode} size={size} shape={shape} thinkingStyle={thinkingStyle} animateVisibility={animateVisibility} animateMotion={animateVisibility} animateText gap={6} label={`${markName} ${size} pixel agent emblem`} className="assistant-status" textClassName={`thinking-label thinking-label--${statusPhase}`} text={`${displayedStatus}...`} textStyle={{ "--status-size": `${Math.min(16, Math.max(12, Math.round(size * 0.62)))}px` } as CSSProperties} />}
               <small>{size}px</small>
             </article>)}
           </div>
@@ -596,7 +748,12 @@ export default function App() {
               </div>
               {liveStreamStage.mode !== "prompt" && <div className={`sdk-assistant-cycle${liveStreamStage.mode === "response" && showStreamAnswer ? " is-streaming-answer" : ""}`}>
                 <AgentEmblemThinking
-                source={source}
+                source={preset ? undefined : source}
+                preset={preset}
+                markScale={markScale}
+                particleCount={particleCount}
+                particleUniformity={particleUniformity}
+                particlePositionUniformity={particlePositionUniformity}
                 activity={liveStreamStage.activity}
                 color={colors}
                 inactiveColor={secondaryInk}
@@ -636,7 +793,7 @@ export default function App() {
             <h3>One package,<br />your way.</h3>
             <div className="implementation-copy">
               <p>Install from npm, then connect AI SDK activity or set the mark’s state with React props.</p>
-              <code className="npm-install" aria-label="Install agent-emblem from npm"><span aria-hidden="true">$</span> npm install agent-emblem</code>
+              <InstallCommand placement="implementation" />
             </div>
           </div>
           <CodeWindow filename="ai-sdk-status.tsx">
@@ -667,7 +824,9 @@ export default function App() {
             <span className="code-line"><span className="code-variable">import</span> <span className="code-punctuation">&#123;</span> <span className="code-prop">AgentEmblem</span> <span className="code-punctuation">&#125;</span> <span className="code-variable">from</span> <span className="code-string">&quot;agent-emblem&quot;</span></span>
             <span className="code-line">&nbsp;</span>
             <span className="code-line"><span className="code-tag">&lt;AgentEmblem</span></span>
-            <span className="code-line">  <span className="code-prop">source</span><span className="code-punctuation">=&#123;</span><span className="code-variable">logoSvg</span><span className="code-punctuation">&#125;</span></span>
+            {preset
+              ? <span className="code-line">  <span className="code-prop">preset</span><span className="code-punctuation">=</span><span className="code-string">&quot;{preset}&quot;</span></span>
+              : <span className="code-line">  <span className="code-prop">source</span><span className="code-punctuation">=&#123;</span><span className="code-variable">logoSvg</span><span className="code-punctuation">&#125;</span></span>}
             <span className="code-line">  <span className="code-prop">state</span><span className="code-punctuation">=</span><span className="code-string">&quot;{state}&quot;</span></span>
             <span className="code-line">  <span className="code-prop">size</span><span className="code-punctuation">=&#123;</span><span className="code-number">20</span><span className="code-punctuation">&#125;</span></span>
             <span className="code-line">  <span className="code-prop">colorMode</span><span className="code-punctuation">=</span><span className="code-string">&quot;{themeMode}&quot;</span></span>
@@ -676,8 +835,13 @@ export default function App() {
               ? <span className="code-line">  <span className="code-prop">inactiveColor</span><span className="code-punctuation">=&#123;&#123;</span> <span className="code-prop">light</span><span className="code-punctuation">:</span> <span className="code-string">&quot;{inactiveColors.light}&quot;</span>, <span className="code-prop">dark</span><span className="code-punctuation">:</span> <span className="code-string">&quot;{inactiveColors.dark}&quot;</span> <span className="code-punctuation">&#125;&#125;</span></span>
               : <span className="code-line">  <span className="code-prop">inactiveColor</span><span className="code-punctuation">=&#123;</span><span className="code-boolean">false</span><span className="code-punctuation">&#125;</span></span>}
             <span className="code-line">  <span className="code-prop">shape</span><span className="code-punctuation">=</span><span className="code-string">&quot;{shape}&quot;</span></span>
+            {markScale !== 1 && <span className="code-line">  <span className="code-prop">markScale</span><span className="code-punctuation">=&#123;</span><span className="code-number">{markScale.toFixed(2)}</span><span className="code-punctuation">&#125;</span></span>}
+            {particleCount !== undefined && <span className="code-line">  <span className="code-prop">particleCount</span><span className="code-punctuation">=&#123;</span><span className="code-number">{particleCount}</span><span className="code-punctuation">&#125;</span></span>}
+            {particleUniformity !== 0 && <span className="code-line">  <span className="code-prop">particleUniformity</span><span className="code-punctuation">=&#123;</span><span className="code-number">{particleUniformity.toFixed(2)}</span><span className="code-punctuation">&#125;</span></span>}
+            {particlePositionUniformity !== 0 && <span className="code-line">  <span className="code-prop">particlePositionUniformity</span><span className="code-punctuation">=&#123;</span><span className="code-number">{particlePositionUniformity.toFixed(2)}</span><span className="code-punctuation">&#125;</span></span>}
             <span className="code-line">  <span className="code-prop">thinkingStyle</span><span className="code-punctuation">=</span><span className="code-string">&quot;{thinkingStyle}&quot;</span></span>
             <span className="code-line">  <span className="code-prop">animateVisibility</span><span className="code-punctuation">=&#123;</span><span className="code-boolean">{String(animateVisibility)}</span><span className="code-punctuation">&#125;</span></span>
+            <span className="code-line">  <span className="code-prop">animateMotion</span><span className="code-punctuation">=&#123;</span><span className="code-boolean">{String(animateVisibility)}</span><span className="code-punctuation">&#125;</span></span>
             <span className="code-line"><span className="code-tag">/&gt;</span></span>
           </CodeWindow>
         </div>
@@ -696,8 +860,8 @@ export default function App() {
           <a href="/examples/animated-svg-logo/"><small>Example 04</small><b>Animate an SVG or PNG logo</b><span>Prepare artwork and preserve fidelity at every size.</span></a>
         </div>
       </section>
-    </main>
-    <Analytics />
+      </main>
+      <Analytics />
     </>
   );
 }

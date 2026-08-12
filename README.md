@@ -4,6 +4,30 @@ AgentEmblem turns transparent SVG or PNG logo artwork into a particle-based Reac
 
 [Demo](https://agent-emblem.vercel.app) · [GitHub](https://github.com/pologarcia/agent-emblem) · [npm](https://www.npmjs.com/package/agent-emblem) · [Made by pologarcia.is](https://pologarcia.is)
 
+## What's new in 0.2.0
+
+- **Start without artwork.** `source` is now optional. Choose the built-in `circle`,
+  `square`, `spark`, or `cursor` with the new `preset` prop; `circle` is the default.
+  The raw SVG map is also exported as `agentEmblemPresets`, alongside the new
+  `AgentEmblemPreset` type.
+- **Compose the particle field.** `markScale` controls the mark's footprint,
+  `particleCount` targets its complexity, `particleUniformity` blends radii toward
+  one size, and `particlePositionUniformity` regularizes spacing.
+- **Keep low-count marks recognizable.** Count-aware sampling now measures filled
+  alpha, increases the candidate grid for sparse artwork, and selects particles
+  across the full silhouette instead of in raster order. Highly uniform circles
+  and squares use balanced rings and complete lattices at low counts.
+- **Make voice states read more clearly.** `talking` now travels as a mirrored,
+  center-emitted waveform, while `listening` gathers an inward ring into a calm
+  center capture. Both remain continuous at compact sizes and loop boundaries.
+- **Design in the browser.** The playground now includes all four built-in marks,
+  live controls for every new particle parameter, custom-logo upload and drag/drop,
+  copyable npm install commands, updated generated React code, and an AI SDK preview
+  that follows the selected mark and composition settings.
+- **Ship with stronger coverage.** New tests cover preset rendering, low-count
+  sampling, spatial balance, voice-signal continuity, playground controls, and the
+  copy-to-clipboard install flow.
+
 ```sh
 npm install agent-emblem
 ```
@@ -37,6 +61,16 @@ import { AgentEmblem, AgentEmblemThinking } from "agent-emblem";
 // Mark only
 <AgentEmblem source={logoSvg} size={20} />
 
+// No logo needed: choose a built-in circle, square, spark, or cursor mark.
+<AgentEmblem
+  preset="spark"
+  markScale={0.8}
+  particleCount={64}
+  particleUniformity={0.75}
+  particlePositionUniformity={0.6}
+  size={20}
+/>
+
 // Mark + thinking copy
 <AgentEmblemThinking
   source={logoSvg}
@@ -51,6 +85,10 @@ import { AgentEmblem, AgentEmblemThinking } from "agent-emblem";
   }}
 />
 ```
+
+The circle, square, spark, and cursor presets ship inside the package and are
+free to use under this project’s license. They do not require an external image,
+logo file, or additional asset download.
 
 `AgentEmblemThinking` accepts all `AgentEmblem` props, plus `text`, `animateText`,
 `gap`, `textSize`, `markClassName`, `textClassName`, and `textStyle` for pairing
@@ -71,7 +109,7 @@ inactive dots use a theme-balanced lower opacity so motion stays distinct.
 
 ## Inputs
 
-`source` accepts raw SVG markup, a data URL, an object URL, or a URL to an image that permits CORS. SVG is preferred. For PNG input, use a transparent 32-bit image with a comfortably sized source (256px or larger on its longest edge is a good default); resampling cannot restore detail that is absent from a tiny raster. For a clearly uniform, opaque matte, AgentEmblem conservatively separates the corner color from the artwork; full-bleed artwork remains intact.
+`source` accepts raw SVG markup, a data URL, an object URL, or a URL to an image that permits CORS. Omit it to use the `circle` preset, or pass another built-in mark with `preset`. SVG is preferred. For PNG input, use a transparent 32-bit image with a comfortably sized source (256px or larger on its longest edge is a good default); resampling cannot restore detail that is absent from a tiny raster. For a clearly uniform, opaque matte, AgentEmblem conservatively separates the corner color from the artwork; full-bleed artwork remains intact.
 
 ## States
 
@@ -87,7 +125,9 @@ inactive dots use a theme-balanced lower opacity so motion stays distinct.
 
 | Prop | Default | Description |
 | --- | --- | --- |
-| `source` | required | SVG markup, data URL, or image URL |
+| `source` | optional | SVG markup, data URL, or image URL; takes precedence over `preset` |
+| `preset` | `circle` | Logo-free built-in mark: `circle`, `square`, `spark`, or `cursor` |
+| `markScale` | `1` | Scales the mark inside its canvas; use `0.5`–`1` for a smaller footprint |
 | `state` | `idle` | One of the seven motion states |
 | `activity` | none | An AI SDK activity object that drives the state from stream parts |
 | `color` | `#f5f5f0` | Dot fill color, either fixed or `{ light, dark }` variants |
@@ -96,6 +136,9 @@ inactive dots use a theme-balanced lower opacity so motion stays distinct.
 | `size` | `240` | Square canvas size in pixels |
 | `density` | `auto` | Approximate sampling cells along the mark’s longest side; automatically fits the source and output size |
 | `dotScale` | `0.28` | Requested particle radius relative to spacing; compact output is automatically constrained to keep particles separate |
+| `particleCount` | auto | Approximate total particle count; use a lower value for a simpler silhouette or omit it for automatic density |
+| `particleUniformity` | `0` | Blends particle sizes toward one radius: `0` preserves organic coverage variation and `1` makes particles fully uniform |
+| `particlePositionUniformity` | `0` | Blends dot positions toward evenly spaced in-shape anchors: `0` preserves ink-weighted placement and `1` produces the most regular spacing |
 | `shape` | `circle` | Rebuilds the sampled logo from `circle`, `square`, `diamond`, or `plus` particles |
 | `thinkingStyle` | `trace` | `trace` or loading-style `bounce` (a rolling jumping wave across the mark) |
 | `animateVisibility` | `false` | State emphasizes dots while preserving the full mark |
@@ -221,9 +264,26 @@ AgentEmblem rasterizes SVG and PNG sources into a shared 1024px coverage space a
 
 Auto sampling measures contour and component complexity from integrated coverage blocks instead of isolated probe pixels. A simple triangle remains spare while a stroked or multi-part mark receives more samples. The prepared coverage mask is shared by component instances at different sizes, avoiding repeated SVG/PNG decoding and rasterization.
 
+When `particleCount` is supplied, AgentEmblem plans the sampling grid before it
+creates any particles. It measures the source’s filled alpha coverage so sparse
+marks such as the cursor and spark receive enough sampling cells while solid
+circle and square marks do not become over-dense. At low counts, candidates are
+selected by spatial coverage instead of raster order so the full silhouette is
+preserved. Changing `particleCount` resamples the source; it does not simply hide
+particles from an already sampled mark. `markScale` then scales that sampled field
+inside the canvas, `particleUniformity` controls radius variation, and
+`particlePositionUniformity` blends ink-weighted centroids toward evenly spaced
+in-shape anchors.
+
+For the built-in circle and square, an explicitly low `particleCount` combined
+with near-max `particlePositionUniformity` uses a dedicated geometric layout:
+balanced rings for the circle and a complete square lattice. The count remains
+approximate so the renderer never removes arbitrary positions just to hit an
+exact number. This opt-in path does not change the default SVG/PNG mapping.
+
 The visible canvas backing store follows its actual physical-pixel content box when the browser exposes it, with an exact device-pixel-ratio fallback. It is not capped at 2×, so 3× and fractional-density displays receive native-resolution rendering and respond correctly to zoom or monitor changes.
 
-When `animateVisibility` is enabled, activation is derived from the visible mark itself: thinking traces the sampled contour, loading draws from the center outward, composing writes across the silhouette in line-by-line passes, talking and listening pulse through its normalized bounds, and researching sweeps a soft flashlight beam through the mark. Every point retains a non-zero opacity floor; activation varies opacity and size without erasing the logo.
+When `animateVisibility` is enabled, activation is derived from the visible mark itself: thinking traces the sampled contour, loading draws from the center outward, composing writes across the silhouette in line-by-line passes, talking emits a mirrored sine-wave trace from the center, listening gathers a calm ring from the perimeter into the center, and researching sweeps a soft flashlight beam through the mark. Every point retains a non-zero opacity floor; activation varies opacity and size without erasing the logo.
 
 ## Contributing
 

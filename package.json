@@ -1,7 +1,7 @@
 {
   "name": "agent-emblem",
-  "version": "0.1.0",
-  "description": "Turn SVG or PNG logos into animated particle emblems for React agents.",
+  "version": "0.2.0",
+  "description": "Turn SVG, PNG, or built-in marks into animated particle emblems for React agents.",
   "author": "Polo Garcia (https://pologarcia.is)",
   "license": "MIT",
   "homepage": "https://agent-emblem.vercel.app",
@@ -58,13 +58,11 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
+    "@vercel/analytics": "^2.0.1",
     "@vitejs/plugin-react": "^5.0.4",
     "jsdom": "^26.1.0",
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
     "vitest": "^4.1.10"
-  },
-  "dependencies": {
-    "@vercel/analytics": "^2.0.1"
   }
 }

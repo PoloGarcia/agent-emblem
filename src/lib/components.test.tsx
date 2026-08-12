@@ -25,6 +25,14 @@ describe("AgentEmblem", () => {
     expect(html).toContain('aria-label="Server-rendered emblem"');
     expect(html).toContain("width:20px");
   });
+
+  it("renders a built-in mark without requiring a logo source", () => {
+    const html = renderToString(<AgentEmblem preset="spark" markScale={0.75} particleCount={48} particleUniformity={1} particlePositionUniformity={1} size={24} label="Spark agent" />);
+
+    expect(html).toContain("<canvas");
+    expect(html).toContain('aria-label="Spark agent"');
+    expect(html).toContain("width:24px");
+  });
 });
 
 describe("AgentEmblemThinking", () => {

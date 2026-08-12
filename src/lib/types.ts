@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 export type AgentEmblemState = "idle" | "thinking" | "loading" | "composing" | "talking" | "researching" | "listening";
 export type AgentEmblemShape = "circle" | "square" | "diamond" | "plus";
+export type AgentEmblemPreset = "circle" | "square" | "spark" | "cursor";
 export type ThinkingStyle = "trace" | "bounce";
 
 export type AgentEmblemSource = string;
@@ -37,8 +38,12 @@ export interface AgentEmblemAIActivity {
 }
 
 export interface AgentEmblemProps {
-  /** An SVG markup string, data URL, image URL, or object URL. Transparent artwork works best. */
-  source: AgentEmblemSource;
+  /** An SVG markup string, data URL, image URL, or object URL. Transparent artwork works best. Takes precedence over `preset`. */
+  source?: AgentEmblemSource;
+  /** A built-in logo-free mark. Defaults to `circle` when `source` is omitted. */
+  preset?: AgentEmblemPreset;
+  /** Scales the sampled mark within its canvas. Use 0.5–1 for a smaller footprint. Defaults to 1. */
+  markScale?: number;
   /** The assistant activity that drives the movement. */
   state?: AgentEmblemState;
   /**
@@ -59,6 +64,21 @@ export interface AgentEmblemProps {
   density?: number | "auto";
   /** Requested particle radius as a fraction of spacing. Compact output is constrained to preserve visible gaps. Defaults to 0.28. */
   dotScale?: number;
+  /**
+   * Approximate total number of particles used to reconstruct the mark. Lower
+   * values make the silhouette simpler. Omit it to use automatic density.
+   */
+  particleCount?: number;
+  /**
+   * Blends particle radii toward one consistent size. Use 0 for organic
+   * coverage-based variation and 1 for fully uniform particles. Defaults to 0.
+   */
+  particleUniformity?: number;
+  /**
+   * Blends particle positions toward evenly spaced in-shape anchors. Use 0 for
+   * natural ink-weighted placement and 1 for the most regular spacing. Defaults to 0.
+   */
+  particlePositionUniformity?: number;
   /** Geometry used to visibly reconstruct the mark: circle, square, diamond, or plus. */
   shape?: AgentEmblemShape;
   /** Thinking animation treatment: a contour trace or a loading-style dot bounce. */

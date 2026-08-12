@@ -5,3 +5,8 @@ server-dist
 .vercel
 .DS_Store
 .env*
+
+# Local Codex skills and the Remotion launch-video workspace
+.agents/
+skills-lock.json
+launch-video/
